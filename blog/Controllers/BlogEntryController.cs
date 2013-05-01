@@ -1,41 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.Mvc;
+﻿using System.Web.Mvc;
 using blog.Models;
 using blog.Models.Entities;
+using blog.Models.Repositories;
 
 namespace blog.Controllers
 {
     public class BlogEntryController : Controller
     {
-        private readonly BlogContext context;
+        private readonly IUnitOfWork context;
+        private readonly IGenericRepository<Entry> entryRepository;
 
         public BlogEntryController()
             : this(new BlogContext())
         {
-
         }
 
-        public BlogEntryController(BlogContext context)
+        public BlogEntryController(IUnitOfWork context)
         {
             this.context = context;
-            var e = new Entry
-            {
-                Title = "First",
-                CreatedOn = DateTime.UtcNow,
-                Body = "This is the body"
-            };
-            this.context.Entries.Add(e);
-            this.context.SaveChanges();
+            this.entryRepository = context.EntryRepository;
         }
+
         //
         // GET: /BlogEntry/
 
         public ActionResult Index()
         {
-            return View();
+            return View(entryRepository.All);
         }
 
         public ActionResult Create()
@@ -43,14 +34,56 @@ namespace blog.Controllers
             return View();
         }
 
+        [HttpPost]
         public ActionResult Create(Entry entry)
         {
-            return View();
+            entryRepository.InsertOrUpdate(ref entry, entry.EntryId);
+            context.Commit();
+            return RedirectToAction("Index");
         }
 
-        public ViewResult BlogEntry(int id)
+        public ActionResult Edit(int id)
         {
-            return View();
+            return View(entryRepository.Find(id));
+        }
+
+        [HttpPost]
+        public ActionResult Edit(Entry entry)
+        {
+            var real_entry = entryRepository.Find(entry.EntryId);
+            real_entry.Body = entry.Body;
+            real_entry.Title = entry.Title;
+            entryRepository.InsertOrUpdate(ref real_entry, real_entry.EntryId);
+            context.Commit();
+            return RedirectToAction("Index");
+        }
+
+        public ActionResult Details(int id)
+        {
+            return View(entryRepository.Find(id));
+        }
+
+        public ActionResult Delete(int id)
+        {
+            return View(entryRepository.Find(id));
+        }
+
+        [HttpPost, ActionName("Delete")]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            entryRepository.Delete(id);
+            context.Commit();
+
+            return RedirectToAction("Index");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                context.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }
